@@ -13,6 +13,11 @@
           "id": "animal-science-2",
           "label": "Set 2",
           "file": "questions/animal-science/animal-science-2.json"
+        },
+        {
+          "id": "animal-science-3",
+          "label": "Set 3",
+          "file": "questions/animal-science/animal-science-3.json"
         }
       ]
     },
