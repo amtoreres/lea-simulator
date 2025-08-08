@@ -20,7 +20,22 @@
   .brand{display:flex;align-items:center;gap:12px}
   .logo{width:80px;height:80px;border-radius:12px;background:linear-gradient(135deg,var(--primary),#66bb6a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:40px;line-height:1;box-shadow:var(--shadow)}
   h1{margin:0;font-size:20px}
-  .controls{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+  /* RIGHT HEADER CONTROLS (right-aligned stack) */
+  .controls{
+    margin-left:auto;
+    display:flex;
+    flex-direction:column;   /* stack rows */
+    align-items:flex-end;    /* right align */
+    gap:6px;
+    flex-wrap:nowrap;
+  }
+  .controls-top{
+    display:flex;
+    align-items:center;
+    gap:8px;                /* space between Answered and Timer */
+  }
+
   .small{font-size:13px;color:var(--muted)}
   .card{background:var(--card);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow)}
   .layout{display:grid;grid-template-columns:260px 1fr;gap:12px}
@@ -93,10 +108,11 @@
       </div>
 
       <div class="controls">
-        <div class="small">Answered: <strong id="answeredCount">0</strong>/<strong id="totalQ">0</strong></div>
-        <div id="timer" title="Time remaining">--:--:--</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <!-- Category & Set pickers -->
+        <div class="controls-top">
+          <div class="small">Answered: <strong id="answeredCount">0</strong>/<strong id="totalQ">0</strong></div>
+          <div id="timer" title="Time remaining">--:--:--</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
           <select id="categorySelect" class="ghost" style="padding:6px;border-radius:8px;min-width:180px">
             <option value="">Select category…</option>
           </select>
@@ -104,8 +120,6 @@
             <option value="">Select set…</option>
           </select>
           <button id="loadSetBtn" class="btn" disabled>Load set</button>
-
-          <!-- Keep load progress -->
           <button id="loadBtn" class="ghost" title="Load progress (L)">Load</button>
         </div>
       </div>
@@ -130,7 +144,7 @@
         </div>
 
         <div id="qGrid" aria-label="Question grid"></div>
-        <!-- Removed the dangling "Options" section -->
+        <!-- Removed Options block -->
       </aside>
 
       <!-- MAIN -->
