@@ -55,67 +55,29 @@
   button.btn{background:var(--primary);color:white;padding:10px 12px;border-radius:8px;border:0;cursor:pointer}
   button.ghost{background:transparent;border:1px solid rgba(6,54,26,0.06);color:var(--muted);padding:8px 10px;border-radius:8px;cursor:pointer}
 
-  /* Button hover and active effects (added) */
-  button.btn, button.ghost {
-    transition: all 0.2s ease, transform 0.15s ease;
-  }
-  button.btn:hover {
-    background: #256928;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    transform: translateY(-2px);
-  }
-  button.btn:active {
-    transform: scale(0.97);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2) inset;
-  }
-  button.ghost:hover {
-    background: rgba(6,54,26,0.05);
-    border-color: rgba(6,54,26,0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-  }
-  button.ghost:active {
-    transform: scale(0.97);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.15) inset;
-  }
+  button.btn, button.ghost { transition: all 0.2s ease, transform 0.15s ease; }
+  button.btn:hover { background:#256928; box-shadow:0 4px 12px rgba(0,0,0,0.15); transform:translateY(-2px); }
+  button.btn:active { transform:scale(0.97); box-shadow:0 2px 6px rgba(0,0,0,0.2) inset; }
+  button.ghost:hover { background:rgba(6,54,26,0.05); border-color:rgba(6,54,26,0.2); transform:translateY(-2px); box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+  button.ghost:active { transform:scale(0.97); box-shadow:0 2px 4px rgba(0,0,0,0.15) inset; }
 
-  /* Question grid button hover/click effects (added) */
-  .qnum {
-    transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  }
-  .qnum:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    border-color: rgba(10,60,20,0.12);
-  }
-  .qnum:active {
-    transform: scale(0.97);
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.12);
-  }
+  .qnum { transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+  .qnum:hover { transform:translateY(-2px); box-shadow:0 4px 10px rgba(0,0,0,0.08); border-color:rgba(10,60,20,0.12); }
+  .qnum:active { transform:scale(0.97); box-shadow:inset 0 2px 4px rgba(0,0,0,0.12); }
 
   .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   footer.small{font-size:13px;color:var(--muted);margin-top:10px}
-  /* result modal */
   .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,20,10,0.45);z-index:60}
   .modal .box{background:white;padding:22px;border-radius:12px;min-width:320px;max-width:90%;text-align:center}
   .result-big{font-size:22px;font-weight:800;color:var(--primary);margin:8px 0}
-  /* responsive */
   @media(max-width:980px){
     .layout{grid-template-columns:1fr;gap:10px}
     aside{order:2}
     .brand h1{font-size:18px}
     #qGrid{grid-template-columns:repeat(10,1fr)}
   }
-  /* Hide review button as review before submit is disabled */
-  #reviewBtn {
-    display: none !important;
-  }
-  .logo{
-    width: 80px;
-    height: 80px;
-    font-size: 40px;
-    line-height: 1;
-  }
+  #reviewBtn { display:none !important; }
+  .logo{ width:80px; height:80px; font-size:40px; line-height:1; }
 </style>
 </head>
 <body>
@@ -150,9 +112,7 @@
       <div class="tools">
         <label class="small">Timer (mins): <input id="timerInput" type="number" value="60" min="1" style="width:70px;margin-left:6px"></label>
         <label class="small"><input id="autoSave" type="checkbox"> Auto-save</label>
-        <button id="randomizeBtn" class="ghost">Randomize Qs</button>
-        <button id="randomChoicesBtn" class="ghost">Randomize Choices</button>
-        <!-- Export buttons removed -->
+        <!-- Randomize buttons removed; randomization happens on import -->
       </div>
     </div>
 
@@ -175,7 +135,7 @@
 
         <div style="margin-top:12px">
           <div class="small">Import</div>
-          <div style="margin-top:8px" class="small">You can import a JSON file formatted like: <code>[{"question":"...","choices":["A","B","C","D"],"answer":0},...]</code></div>
+          <div style="margin-top:8px" class="small">Format: <code>[{"question":"...","choices":["A","B","C","D"],"answer":0},...]</code></div>
         </div>
       </aside>
 
@@ -202,7 +162,7 @@
           </div>
         </div>
 
-        <footer class="small">Tip: Use the <strong>Import JSON</strong> button to upload your exam file. The page auto-saves if enabled.</footer>
+        <footer class="small">Tip: Use the <strong>Import JSON</strong> button to upload your exam file. Choices and question order are randomized automatically.</footer>
       </main>
     </div>
   </div>
@@ -226,7 +186,7 @@ let USER = [];                 // array user answers (index or null)
 let CURRENT = 0;
 let TOTAL = 0;
 let TIMER = null;
-let reviewMode = false;        // review mode disabled before submission and no review button
+let reviewMode = false;
 
 /* --- DOM refs --- */
 const qGrid = document.getElementById('qGrid');
@@ -254,9 +214,7 @@ const resetBtn = document.getElementById('resetBtn');
 const closeResultBtn = document.getElementById('closeResult');
 const timerInput = document.getElementById('timerInput');
 const autoSaveCheckbox = document.getElementById('autoSave');
-const randomizeBtn = document.getElementById('randomizeBtn');
-const randomChoicesBtn = document.getElementById('randomChoicesBtn');
-// exportJsonBtn/exportCsvBtn removed
+// randomize buttons removed
 
 /* --- Helpers --- */
 function safeText(s){ return String(s||'').replace(/\s+$/,'').trim(); }
@@ -273,6 +231,12 @@ function updateAnsweredCount(){
   document.getElementById('answeredCount').textContent = count;
   document.getElementById('totalQ').textContent = TOTAL;
   progressFill.style.width = TOTAL? Math.round((count/TOTAL)*100) + '%' : '0%';
+}
+function shuffleArray(a){
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
 }
 
 /* --- Build grid --- */
@@ -295,7 +259,6 @@ function refreshGrid(){
     n.classList.toggle('current', i===CURRENT);
     n.classList.toggle('answered', USER[i] !== null);
     n.classList.remove('correct','wrong');
-    // No review highlights before submit, no review button, so skip
   });
 }
 
@@ -312,7 +275,6 @@ function renderQuestion(idx){
     const el = document.createElement('div');
     el.className = 'choice';
     if (!reviewMode && USER[idx] === i) el.classList.add('selected');
-    // No review highlight, so no correct/wrong classes applied
     el.innerHTML = `<div class="letter">${String.fromCharCode(65+i)}</div><div style="flex:1">${c}</div>`;
     if (!reviewMode){
       el.tabIndex = 0;
@@ -335,30 +297,63 @@ function selectAnswer(qIdx, cIdx){
   renderQuestion(qIdx);
 }
 
-/* --- Loading JSON --- */
+/* --- Import JSON --- */
+fileInput.addEventListener('change', e=>{
+  if(e.target.files.length>0){
+    importJSONFile(e.target.files[0]);
+  }
+  e.target.value = '';
+});
+
 function importJSONFile(file){
   const reader = new FileReader();
   reader.onload = ()=>{
     try{
       const parsed = JSON.parse(reader.result);
-      loadQuestionsFromArray(parsed);
-      alert('Imported ' + (parsed.length||0) + ' questions.');
+      loadQuestionsFromArray(parsed, /*shouldRandomize=*/true);
+      alert('Imported ' + (parsed.length||0) + ' questions. (Shuffled)');
     }catch(e){ alert('Invalid JSON file.'); }
   };
   reader.readAsText(file);
 }
-function loadQuestionsFromArray(arr){
+
+/* --- Load questions into app (optionally randomize) --- */
+function loadQuestionsFromArray(arr, shouldRandomize=false){
   QUESTIONS = arr.map((q,idx)=>({
     question: q.question || q.prompt || `Question ${idx+1}`,
     choices: Array.isArray(q.choices) ? q.choices.slice(0,4) : [],
     answer: (typeof q.answer === 'number' ? q.answer : (q.answer === null ? null : (typeof q.correct === 'number'? q.correct : null)))
   }));
-  QUESTIONS.forEach((q,i)=>{
-    // Ensure answer is valid index
+
+  // sanitize answer indices
+  QUESTIONS.forEach(q=>{
     if(q.answer === null || q.answer >= q.choices.length || q.answer < 0) q.answer = null;
   });
+
+  // 1) shuffle choices per question (and fix answer index)
+  if (shouldRandomize){
+    QUESTIONS.forEach(q=>{
+      const arr = q.choices.map((ch,idx)=>({choice: ch, idx}));
+      shuffleArray(arr);
+      q.choices = arr.map(a=>a.choice);
+      if(q.answer !== null){
+        const newIndex = arr.findIndex(a=>a.idx === q.answer);
+        q.answer = newIndex === -1 ? null : newIndex;
+      }
+    });
+  }
+
   TOTAL = QUESTIONS.length;
   USER = new Array(TOTAL).fill(null);
+
+  // 2) shuffle question order (carry USER answers in parallel — they’re all null initially)
+  if (shouldRandomize){
+    const zipped = QUESTIONS.map((q,i)=>({q, a: USER[i]}));
+    shuffleArray(zipped);
+    QUESTIONS = zipped.map(z=>z.q);
+    USER = zipped.map(z=>z.a);
+  }
+
   reviewMode = false;
   CURRENT = 0;
   renderQuestion(0);
@@ -367,7 +362,6 @@ function loadQuestionsFromArray(arr){
   submitBtn.disabled = false;
   prevBtn.disabled = false;
   nextBtn.disabled = false;
-  // Reset timer if you want
 }
 
 /* --- Submit exam --- */
@@ -474,8 +468,8 @@ qGrid.addEventListener('click', (e)=>{
 
 /* --- Keyboard navigation --- */
 document.addEventListener('keydown', (e)=>{
-  if(reviewMode) return; // no changes allowed
-  if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return; // ignore typing
+  if(reviewMode) return;
+  if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
   if(e.key === 'ArrowLeft' || e.key === 'ArrowUp'){
     e.preventDefault();
@@ -565,14 +559,6 @@ function loadProgressFromLocal(){
 saveBtn.addEventListener('click', ()=>saveProgressToLocal(true));
 loadBtn.addEventListener('click', loadProgressFromLocal);
 
-/* --- Import JSON --- */
-fileInput.addEventListener('change', e=>{
-  if(e.target.files.length>0){
-    importJSONFile(e.target.files[0]);
-  }
-  e.target.value = '';
-});
-
 /* --- Save as JSON file (user progress) --- */
 saveLocalBtn.addEventListener('click', ()=>{
   if(TOTAL === 0) {
@@ -613,47 +599,6 @@ resetBtn.addEventListener('click', ()=>{
   }
 });
 
-/* --- Randomize questions --- */
-randomizeBtn.addEventListener('click', ()=>{
-  if(confirm('Randomize questions order?')){
-    for(let i=QUESTIONS.length-1; i>0; i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [QUESTIONS[i], QUESTIONS[j]] = [QUESTIONS[j], QUESTIONS[i]];
-      [USER[i], USER[j]] = [USER[j], USER[i]];
-    }
-    CURRENT = 0;
-    buildGrid();
-    renderQuestion(0);
-  }
-});
-/* --- Randomize choices --- */
-randomChoicesBtn.addEventListener('click', ()=>{
-  if(confirm('Randomize choices order within each question?')){
-    QUESTIONS.forEach((q,i)=>{
-      const arr = q.choices.map((ch,idx)=>({choice: ch, idx}));
-      for(let i=arr.length-1; i>0; i--){
-        const j = Math.floor(Math.random()*(i+1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      q.choices = arr.map(a=>a.choice);
-      // Fix answer index to new position
-      if(q.answer !== null){
-        const origAnswer = arr.findIndex(a=>a.idx === q.answer);
-        q.answer = origAnswer === -1 ? null : origAnswer;
-      }
-    });
-    renderQuestion(CURRENT);
-    buildGrid();
-  }
-});
-
-/* --- Auto-save --- */
-autoSaveCheckbox.addEventListener('change', e=>{
-  if(e.target.checked){
-    saveProgressToLocal(false);
-  }
-});
-
 /* --- Timer --- */
 let timerSeconds = 3600; // default 1hr
 timerInput.addEventListener('change', e=>{
@@ -676,12 +621,10 @@ function resetTimer(){
     }
   },1000);
 }
-// Start timer initially
 resetTimer();
 
 /* --- Initialization --- */
 function init(){
-  // Disable buttons that require questions before loaded
   submitBtn.disabled = true;
   prevBtn.disabled = true;
   nextBtn.disabled = true;
