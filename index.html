@@ -51,6 +51,7 @@
   .choice.correct{background:linear-gradient(90deg,#16a34a33,#16a34a22);border-color:rgba(22,163,74,0.3)}
   .choice.wrong{background:linear-gradient(90deg,#ef444433,#ef444422);border-color:rgba(239,68,68,0.25)}
   .nav{display:flex;gap:8px;align-items:center;margin-top:12px}
+  .nav .spacer{flex:1}
 
   /* Buttons */
   button.btn{background:var(--primary);color:white;padding:10px 12px;border-radius:8px;border:0;cursor:pointer}
@@ -78,8 +79,6 @@
     .brand h1{font-size:18px}
     #qGrid{grid-template-columns:repeat(10,1fr)}
   }
-  /* Hide review button as review before submit is disabled */
-  #reviewBtn { display: none !important; }
 </style>
 </head>
 <body>
@@ -131,14 +130,7 @@
         </div>
 
         <div id="qGrid" aria-label="Question grid"></div>
-
-        <div style="margin-top:12px">
-          <div class="small">Options</div>
-          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-            <button id="reviewBtn" class="ghost">Review answers</button>
-            <button id="submitBtn" class="btn">Submit exam</button>
-          </div>
-        </div>
+        <!-- Removed the dangling "Options" section -->
       </aside>
 
       <!-- MAIN -->
@@ -157,6 +149,8 @@
           <div class="nav">
             <button id="prevBtn" class="ghost">← Previous</button>
             <button id="nextBtn" class="ghost">Next →</button>
+            <div class="spacer"></div>
+            <button id="submitBtn" class="btn">Submit exam</button>
           </div>
         </div>
 
@@ -200,7 +194,6 @@ const resultModal = document.getElementById('resultModal');
 const scoreText = document.getElementById('scoreText');
 const percentText = document.getElementById('percentText');
 const submitBtn = document.getElementById('submitBtn');
-const reviewBtn = document.getElementById('reviewBtn');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const clearAnswersBtn = document.getElementById('clearAnswers');
