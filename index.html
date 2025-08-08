@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Animal Science — Licensure Mock Exam</title>
-<meta name="description" content="Interactive 100-question animal science mock exam — timer, review mode, load, export results."/>
+<meta name="description" content="Interactive mock exam — timer, review mode, load progress, manifest-based sets."/>
 <style>
   :root{
     --bg:#f6fbf6; --panel:#ecf7ec; --card:#ffffff;
@@ -97,7 +97,7 @@
         <div class="small">Answered: <strong id="answeredCount">0</strong>/<strong id="totalQ">0</strong></div>
         <div id="timer" title="Time remaining">--:--:--</div>
         <div style="display:flex;gap:8px;align-items:center">
-          <!-- NEW: Category & Set pickers -->
+          <!-- Category & Set pickers -->
           <select id="categorySelect" class="ghost" style="padding:6px;border-radius:8px;min-width:180px">
             <option value="">Select category…</option>
           </select>
@@ -129,6 +129,7 @@
           <div class="small">Navigator</div>
           <div class="small"><button id="clearAnswers" class="ghost" title="Clear all answers">Clear</button></div>
         </div>
+
         <div id="qGrid" aria-label="Question grid"></div>
 
         <div style="margin-top:12px">
@@ -136,14 +137,6 @@
           <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
             <button id="reviewBtn" class="ghost">Review answers</button>
             <button id="submitBtn" class="btn">Submit exam</button>
-          </div>
-        </div>
-
-        <div style="margin-top:12px">
-          <div class="small">Data</div>
-          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-            <button id="saveLocalBtn" class="ghost">Save file</button>
-            <button id="resetBtn" class="ghost">Reset exam</button>
           </div>
         </div>
       </aside>
@@ -164,10 +157,6 @@
           <div class="nav">
             <button id="prevBtn" class="ghost">← Previous</button>
             <button id="nextBtn" class="ghost">Next →</button>
-            <div style="margin-left:auto;display:flex;gap:8px">
-              <button id="saveLocalBtn2" class="ghost">Save file</button>
-              <button id="resetBtn2" class="ghost">Reset exam</button>
-            </div>
           </div>
         </div>
 
@@ -216,14 +205,10 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const clearAnswersBtn = document.getElementById('clearAnswers');
 const loadBtn = document.getElementById('loadBtn');
-const saveLocalBtn = document.getElementById('saveLocalBtn');
-const saveLocalBtn2 = document.getElementById('saveLocalBtn2');
-const resetBtn = document.getElementById('resetBtn');
-const resetBtn2 = document.getElementById('resetBtn2');
 const closeResultBtn = document.getElementById('closeResult');
 const timerInput = document.getElementById('timerInput');
 
-/* NEW: picker refs */
+/* Picker refs */
 const categorySelect = document.getElementById('categorySelect');
 const setSelect = document.getElementById('setSelect');
 const loadSetBtn = document.getElementById('loadSetBtn');
@@ -545,48 +530,6 @@ function loadProgressFromLocal(){
 }
 loadBtn.addEventListener('click', loadProgressFromLocal);
 
-/* Duplicate save/reset controls in main card */
-saveLocalBtn.addEventListener('click', ()=> downloadProgress());
-saveLocalBtn2.addEventListener('click', ()=> downloadProgress());
-resetBtn.addEventListener('click', ()=> resetExam());
-resetBtn2.addEventListener('click', ()=> resetExam());
-
-/* --- Save as JSON file (user progress) --- */
-function downloadProgress(){
-  if(TOTAL === 0) {
-    alert('No exam loaded');
-    return;
-  }
-  const data = { questions: QUESTIONS, userAnswers: USER };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'mock-exam-progress.json';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-/* --- Reset exam --- */
-function resetExam(){
-  if(confirm('Reset the exam and clear all data?')){
-    QUESTIONS = [];
-    USER = [];
-    CURRENT = 0;
-    TOTAL = 0;
-    reviewMode = false;
-    qGrid.innerHTML = '';
-    questionText.textContent = 'Pick a category and set, then click “Load set”.';
-    choicesEl.innerHTML = '';
-    updateAnsweredCount();
-    submitBtn.disabled = true;
-    prevBtn.disabled = true;
-    nextBtn.disabled = true;
-  }
-}
-
 /* --- Timer --- */
 let timerSeconds = 3600; // default 1hr
 timerInput.addEventListener('change', e=>{
@@ -612,12 +555,11 @@ function resetTimer(){
 // Start timer initially
 resetTimer();
 
-/* === NEW: Manifest-driven set loader === */
+/* === Manifest-driven set loader === */
 let MANIFEST = null;
 let FILE_BY_SET_ID = new Map();
 
 async function fetchManifest(){
-  // Hosted on GitHub Pages? This is same-origin and CORS-safe.
   const res = await fetch('questions/index.json', { cache: 'no-cache' });
   if(!res.ok) throw new Error('Failed to load question manifest.');
   return res.json();
@@ -683,7 +625,6 @@ loadSetBtn.addEventListener('click', ()=>{
   nextBtn.disabled = true;
   updateAnsweredCount();
 
-  // Try to load manifest
   try{
     MANIFEST = await fetchManifest();
     populateCategorySelect();
