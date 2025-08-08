@@ -4,6 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Animal Science — Licensure Mock Exam</title>
+
+<!-- 🌱 Emoji favicon (no external file needed) -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
+
 <meta name="description" content="Interactive mock exam — timer, review mode, load progress, manifest-based sets."/>
 <style>
   :root{
@@ -47,11 +51,11 @@
   }
   .badge--progress{
     color:#fff;
-    background:linear-gradient(90deg,#0ea5e9,#2563eb); /* cyan → blue */
+    background:linear-gradient(90deg,#0ea5e9,#2563eb);
   }
   .badge--score{
     color:#06361a;
-    background:linear-gradient(90deg,#ffd86b,#ffb300); /* gold */
+    background:linear-gradient(90deg,#ffd86b,#ffb300);
   }
 
   .small{font-size:13px;color:var(--muted)}
@@ -127,7 +131,6 @@
 
       <div class="controls">
         <div class="controls-top">
-          <!-- BIGGER, PILL-STYLE STATUS BADGE -->
           <div id="statusBadge" class="badge badge--progress" role="status" aria-live="polite">
             Answered: <strong id="answeredCount">0</strong>/<strong id="totalQ">0</strong>
           </div>
@@ -268,7 +271,6 @@ function updateAnsweredCount(){
   document.getElementById('totalQ').textContent = TOTAL;
   progressFill.style.width = TOTAL? Math.round((count/TOTAL)*100) + '%' : '0%';
 
-  // Only show "Answered" while not in review mode
   if (!reviewMode){
     statusBadge.innerHTML = `Answered: <strong id="answeredCount">${count}</strong>/<strong id="totalQ">${TOTAL}</strong>`;
     setProgressBadge();
@@ -303,8 +305,7 @@ function refreshGrid(){
     n.classList.toggle('current', i===CURRENT);
 
     if (reviewMode){
-      // Keep .correct/.wrong; ensure .answered doesn't override colors
-      n.classList.remove('answered');
+      n.classList.remove('answered');   // keep correct/wrong colors
     } else {
       n.classList.toggle('answered', USER[i] !== null);
       n.classList.remove('correct','wrong');
@@ -345,7 +346,7 @@ function renderQuestion(idx){
 function selectAnswer(qIdx, cIdx){
   if (reviewMode) return;
   USER[qIdx] = cIdx;
-  saveProgressToLocal(false);   // silent save to localStorage
+  saveProgressToLocal(false);
   renderQuestion(qIdx);
 }
 
@@ -418,7 +419,7 @@ function submitExam(){
     if(USER[i] === QUESTIONS[i].answer) correct++;
   }
 
-  // Convert "Answered" badge → "Score" badge (big, gold)
+  // Convert "Answered" badge → "Score" badge
   statusBadge.textContent = `Score: ${correct} / ${TOTAL}`;
   setScoreBadge();
 
@@ -457,7 +458,7 @@ function renderReviewQuestion(idx){
     choicesEl.appendChild(el);
   });
   refreshGrid();
-  updateAnsweredCount(); // won't overwrite badge text while reviewMode = true
+  updateAnsweredCount();
 }
 
 /* --- Update grid after submit --- */
