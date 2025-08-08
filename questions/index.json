@@ -8,6 +8,11 @@
           "id": "animal-science-1",
           "label": "Set 1",
           "file": "questions/animal-science/animal-science-1.json"
+        },
+        {
+          "id": "animal-science-2",
+          "label": "Set 2",
+          "file": "questions/animal-science/animal-science-2.json"
         }
       ]
     },
