@@ -34,6 +34,11 @@
           "id": "crop-science-2",
           "label": "Set 2",
           "file": "questions/crop-science/crop-science-2.json"
+        },
+        {
+          "id": "crop-science-3",
+          "label": "Set 3",
+          "file": "questions/crop-science/crop-science-3.json"
         }
       ]
     }
