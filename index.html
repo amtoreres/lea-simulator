@@ -26,13 +26,13 @@
     margin-left:auto;
     display:flex;
     flex-direction:column;
-    align-items:flex-end;    /* right align */
+    align-items:flex-end;
     gap:6px;
   }
   .controls-top{
     display:flex;
     align-items:center;
-    gap:8px;                /* space between Answered and Timer */
+    gap:8px;
   }
 
   .small{font-size:13px;color:var(--muted)}
@@ -254,13 +254,22 @@ function buildGrid(){
   }
   refreshGrid();
 }
+
+/* --- Refresh grid (aware of review mode) --- */
 function refreshGrid(){
   const nodes = qGrid.querySelectorAll('.qnum');
   nodes.forEach(n=>{
     const i = Number(n.dataset.i);
     n.classList.toggle('current', i===CURRENT);
-    n.classList.toggle('answered', USER[i] !== null);
-    n.classList.remove('correct','wrong');
+
+    if (reviewMode){
+      // In review mode: keep .correct/.wrong that were set; remove .answered so it doesn't turn everything green
+      n.classList.remove('answered');
+    } else {
+      // During answering: show which items are answered; clear any review colors
+      n.classList.toggle('answered', USER[i] !== null);
+      n.classList.remove('correct','wrong');
+    }
   });
 }
 
@@ -297,7 +306,7 @@ function renderQuestion(idx){
 function selectAnswer(qIdx, cIdx){
   if (reviewMode) return;
   USER[qIdx] = cIdx;
-  saveProgressToLocal(false);   // silent save to localStorage
+  saveProgressToLocal(false);
   renderQuestion(qIdx);
 }
 
@@ -314,7 +323,7 @@ function loadQuestionsFromArray(arr, shouldRandomize=false){
     if(q.answer === null || q.answer >= q.choices.length || q.answer < 0) q.answer = null;
   });
 
-  // 1) shuffle choices per question and fix answer index
+  // Shuffle choices per question and fix answer index
   if (shouldRandomize){
     QUESTIONS.forEach(q=>{
       const arr = q.choices.map((ch,idx)=>({choice: ch, idx}));
@@ -330,7 +339,7 @@ function loadQuestionsFromArray(arr, shouldRandomize=false){
   TOTAL = QUESTIONS.length;
   USER = new Array(TOTAL).fill(null);
 
-  // 2) shuffle question order (answers all null initially)
+  // Shuffle question order
   if (shouldRandomize){
     const zipped = QUESTIONS.map((q,i)=>({q, a: USER[i]}));
     shuffleArray(zipped);
@@ -370,16 +379,14 @@ function submitExam(){
     if(USER[i] === QUESTIONS[i].answer) correct++;
   }
 
+  // First mark grid cells, then render current question (prevents flicker)
+  updateGridForReview();
+  renderReviewQuestion(CURRENT);
+
   // Show result modal
   scoreText.textContent = `${correct} / ${TOTAL}`;
   percentText.textContent = TOTAL ? ((correct/TOTAL)*100).toFixed(2) + '%' : '0%';
   resultModal.style.display = 'flex';
-
-  // Render current question with review mode (highlight correct/wrong)
-  renderReviewQuestion(CURRENT);
-
-  // Update grid colors
-  updateGridForReview();
 }
 
 /* --- Render question in review mode --- */
@@ -416,8 +423,6 @@ function updateGridForReview(){
   nodes.forEach(n=>{
     const i = Number(n.dataset.i);
     n.classList.remove('current','answered','correct','wrong');
-    if(i === CURRENT) n.classList.add('current');
-    if(USER[i] !== null) n.classList.add('answered');
     if(USER[i] !== null && QUESTIONS[i].answer !== null){
       if(USER[i] === QUESTIONS[i].answer){
         n.classList.add('correct');
@@ -425,6 +430,7 @@ function updateGridForReview(){
         n.classList.add('wrong');
       }
     }
+    if(i === CURRENT) n.classList.add('current');
   });
 }
 
@@ -540,7 +546,7 @@ let timerSeconds = 3600; // default 1hr
 timerInput.addEventListener('change', e=>{
   const val = Number(e.target.value);
   if(val > 0){
-    timerSeconds = val * 60; // don't start yet; just set initial seconds
+    timerSeconds = val * 60; // don't start yet
   }
 });
 function resetTimer(){
@@ -556,8 +562,7 @@ function resetTimer(){
     }
   },1000);
 }
-// IMPORTANT: Do NOT start the timer on load.
-// (No call to resetTimer() here.)
+// Do not start timer on load
 
 /* === Manifest-driven set loader === */
 let MANIFEST = null;
@@ -633,8 +638,6 @@ loadSetBtn.addEventListener('click', ()=>{
   prevBtn.disabled = true;
   nextBtn.disabled = true;
   updateAnsweredCount();
-
-  // Timer shows placeholder until a set is loaded (no resetTimer call here)
 
   try{
     MANIFEST = await fetchManifest();
