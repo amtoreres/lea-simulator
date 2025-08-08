@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Animal Science — Licensure Mock Exam</title>
-<meta name="description" content="Interactive 100-question animal science mock exam — import JSON, timer, review mode, save/load, export results."/>
+<meta name="description" content="Interactive 100-question animal science mock exam — import JSON, timer, review mode, save/load."/>
 <style>
   :root{
     --bg:#f6fbf6; --panel:#ecf7ec; --card:#ffffff;
@@ -111,11 +111,11 @@
     display: none !important;
   }
   .logo{
-  width: 80px;
-  height: 80px;
-  font-size: 40px;   /* emoji size */
-  line-height: 1;    /* keeps it nicely centered */
-}
+    width: 80px;
+    height: 80px;
+    font-size: 40px;
+    line-height: 1;
+  }
 </style>
 </head>
 <body>
@@ -152,8 +152,7 @@
         <label class="small"><input id="autoSave" type="checkbox"> Auto-save</label>
         <button id="randomizeBtn" class="ghost">Randomize Qs</button>
         <button id="randomChoicesBtn" class="ghost">Randomize Choices</button>
-        <button id="exportJsonBtn" class="ghost">Export JSON</button>
-        <button id="exportCsvBtn" class="ghost">Export CSV</button>
+        <!-- Export buttons removed -->
       </div>
     </div>
 
@@ -175,7 +174,7 @@
         </div>
 
         <div style="margin-top:12px">
-          <div class="small">Import/Export</div>
+          <div class="small">Import</div>
           <div style="margin-top:8px" class="small">You can import a JSON file formatted like: <code>[{"question":"...","choices":["A","B","C","D"],"answer":0},...]</code></div>
         </div>
       </aside>
@@ -257,8 +256,7 @@ const timerInput = document.getElementById('timerInput');
 const autoSaveCheckbox = document.getElementById('autoSave');
 const randomizeBtn = document.getElementById('randomizeBtn');
 const randomChoicesBtn = document.getElementById('randomChoicesBtn');
-const exportJsonBtn = document.getElementById('exportJsonBtn');
-const exportCsvBtn = document.getElementById('exportCsvBtn');
+// exportJsonBtn/exportCsvBtn removed
 
 /* --- Helpers --- */
 function safeText(s){ return String(s||'').replace(/\s+$/,'').trim(); }
@@ -575,7 +573,7 @@ fileInput.addEventListener('change', e=>{
   e.target.value = '';
 });
 
-/* --- Save as JSON file --- */
+/* --- Save as JSON file (user progress) --- */
 saveLocalBtn.addEventListener('click', ()=>{
   if(TOTAL === 0) {
     alert('No exam loaded');
@@ -613,51 +611,6 @@ resetBtn.addEventListener('click', ()=>{
     nextBtn.disabled = true;
     clearAnswersBtn.disabled = false;
   }
-});
-
-/* --- Export JSON --- */
-exportJsonBtn.addEventListener('click', ()=>{
-  if(TOTAL===0) {
-    alert('No exam loaded');
-    return;
-  }
-  const out = JSON.stringify(QUESTIONS, null, 2);
-  const blob = new Blob([out], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'mock-exam-questions.json';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-});
-
-/* --- Export CSV --- */
-exportCsvBtn.addEventListener('click', ()=>{
-  if(TOTAL===0){
-    alert('No exam loaded');
-    return;
-  }
-  let csv = 'Question,Choice A,Choice B,Choice C,Choice D,Answer\n';
-  QUESTIONS.forEach(q=>{
-    const escaped = str=>`"${(q.question||'').replace(/"/g,'""')}"`;
-    let line = escaped(q.question);
-    for(let i=0;i<4;i++){
-      line += ',' + `"${(q.choices[i]||'').replace(/"/g,'""')}"`;
-    }
-    line += ',' + (typeof q.answer === 'number' ? String.fromCharCode(65 + q.answer) : '');
-    csv += line + '\n';
-  });
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'mock-exam-questions.csv';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
 });
 
 /* --- Randomize questions --- */
