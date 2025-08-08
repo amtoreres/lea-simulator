@@ -9,7 +9,7 @@
   :root{
     --bg:#f6fbf6; --panel:#ecf7ec; --card:#ffffff;
     --primary:#2e7d32; --muted:#6b7280; --accent:#ffb300; --danger:#ef4444;
-    --ok:#16a34a;
+    --ok:#16a34a; --info:#2563eb;
     --radius:12px; --shadow: 0 6px 18px rgba(18,52,20,0.06);
     --maxw:1200px;
   }
@@ -33,6 +33,25 @@
     display:flex;
     align-items:center;
     gap:8px;
+  }
+
+  /* Badges */
+  .badge{
+    font-size:15px;
+    font-weight:800;
+    padding:8px 12px;
+    border-radius:999px;
+    line-height:1;
+    box-shadow:var(--shadow);
+    white-space:nowrap;
+  }
+  .badge--progress{
+    color:#fff;
+    background:linear-gradient(90deg,#0ea5e9,#2563eb); /* cyan → blue */
+  }
+  .badge--score{
+    color:#06361a;
+    background:linear-gradient(90deg,#ffd86b,#ffb300); /* gold */
   }
 
   .small{font-size:13px;color:var(--muted)}
@@ -108,7 +127,10 @@
 
       <div class="controls">
         <div class="controls-top">
-          <div class="small">Answered: <strong id="answeredCount">0</strong>/<strong id="totalQ">0</strong></div>
+          <!-- BIGGER, PILL-STYLE STATUS BADGE -->
+          <div id="statusBadge" class="badge badge--progress" role="status" aria-live="polite">
+            Answered: <strong id="answeredCount">0</strong>/<strong id="totalQ">0</strong>
+          </div>
           <div id="timer" title="Time remaining">--:--:--</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
@@ -205,6 +227,7 @@ const timerEl = document.getElementById('timer');
 const resultModal = document.getElementById('resultModal');
 const scoreText = document.getElementById('scoreText');
 const percentText = document.getElementById('percentText');
+const statusBadge = document.getElementById('statusBadge');
 const submitBtn = document.getElementById('submitBtn');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
@@ -225,6 +248,17 @@ function formatTime(s){
   const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
   return (h>0? String(h).padStart(2,'0')+':' : '') + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
 }
+
+/* Status badge helpers */
+function setProgressBadge(){
+  statusBadge.classList.remove('badge--score');
+  statusBadge.classList.add('badge','badge--progress');
+}
+function setScoreBadge(){
+  statusBadge.classList.remove('badge--progress');
+  statusBadge.classList.add('badge','badge--score');
+}
+
 function updateAnsweredCount(){ 
   const count = USER.filter(x=>x!==null).length;
   answeredCountEl.textContent = count;
@@ -233,6 +267,12 @@ function updateAnsweredCount(){
   document.getElementById('answeredCount').textContent = count;
   document.getElementById('totalQ').textContent = TOTAL;
   progressFill.style.width = TOTAL? Math.round((count/TOTAL)*100) + '%' : '0%';
+
+  // Only show "Answered" while not in review mode
+  if (!reviewMode){
+    statusBadge.innerHTML = `Answered: <strong id="answeredCount">${count}</strong>/<strong id="totalQ">${TOTAL}</strong>`;
+    setProgressBadge();
+  }
 }
 function shuffleArray(a){
   for(let i=a.length-1;i>0;i--){
@@ -249,7 +289,7 @@ function buildGrid(){
     btn.className = 'qnum';
     btn.textContent = i+1;
     btn.dataset.i = i;
-    btn.addEventListener('click', ()=>{ renderQuestion(i);});
+    btn.addEventListener('click', ()=>{ reviewMode ? renderReviewQuestion(i) : renderQuestion(i); });
     qGrid.appendChild(btn);
   }
   refreshGrid();
@@ -263,10 +303,9 @@ function refreshGrid(){
     n.classList.toggle('current', i===CURRENT);
 
     if (reviewMode){
-      // In review mode: keep .correct/.wrong that were set; remove .answered so it doesn't turn everything green
+      // Keep .correct/.wrong; ensure .answered doesn't override colors
       n.classList.remove('answered');
     } else {
-      // During answering: show which items are answered; clear any review colors
       n.classList.toggle('answered', USER[i] !== null);
       n.classList.remove('correct','wrong');
     }
@@ -306,7 +345,7 @@ function renderQuestion(idx){
 function selectAnswer(qIdx, cIdx){
   if (reviewMode) return;
   USER[qIdx] = cIdx;
-  saveProgressToLocal(false);
+  saveProgressToLocal(false);   // silent save to localStorage
   renderQuestion(qIdx);
 }
 
@@ -379,7 +418,11 @@ function submitExam(){
     if(USER[i] === QUESTIONS[i].answer) correct++;
   }
 
-  // First mark grid cells, then render current question (prevents flicker)
+  // Convert "Answered" badge → "Score" badge (big, gold)
+  statusBadge.textContent = `Score: ${correct} / ${TOTAL}`;
+  setScoreBadge();
+
+  // Mark grid cells, then render current question
   updateGridForReview();
   renderReviewQuestion(CURRENT);
 
@@ -414,7 +457,7 @@ function renderReviewQuestion(idx){
     choicesEl.appendChild(el);
   });
   refreshGrid();
-  updateAnsweredCount();
+  updateAnsweredCount(); // won't overwrite badge text while reviewMode = true
 }
 
 /* --- Update grid after submit --- */
@@ -450,8 +493,7 @@ nextBtn.addEventListener('click', ()=>{
 qGrid.addEventListener('click', (e)=>{
   if(e.target && e.target.matches('button.qnum')){
     const idx = Number(e.target.dataset.i);
-    CURRENT = idx;
-    reviewMode ? renderReviewQuestion(CURRENT) : renderQuestion(CURRENT);
+    reviewMode ? renderReviewQuestion(idx) : renderQuestion(idx);
   }
 });
 
@@ -460,11 +502,11 @@ document.addEventListener('keydown', (e)=>{
   if(reviewMode) return;
   if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-  if(e.key === 'ArrowLeft' || e.key === 'ArrowUp'){
+  if(e.key === 'ArrowLeft' || e.key==='ArrowUp'){
     e.preventDefault();
     if(CURRENT > 0) renderQuestion(CURRENT-1);
   }
-  else if(e.key === 'ArrowRight' || e.key === 'ArrowDown'){
+  else if(e.key === 'ArrowRight' || e.key==='ArrowDown'){
     e.preventDefault();
     if(CURRENT < TOTAL-1) renderQuestion(CURRENT+1);
   }
@@ -488,6 +530,11 @@ clearAnswersBtn.addEventListener('click', ()=>{
   submitBtn.disabled = false;
   prevBtn.disabled = false;
   nextBtn.disabled = false;
+
+  // Reset badge back to "Answered"
+  statusBadge.innerHTML = `Answered: <strong id="answeredCount">0</strong>/<strong id="totalQ">${TOTAL}</strong>`;
+  setProgressBadge();
+
   renderQuestion(0);
   buildGrid();
   updateAnsweredCount();
@@ -613,6 +660,10 @@ async function fetchAndLoadSet(setId){
     // Start the timer ONLY after a set is loaded
     timerSeconds = Math.max(1, Number(timerInput.value) || 60) * 60;
     resetTimer();
+
+    // Reset the badge to "Answered" for a new run
+    statusBadge.innerHTML = `Answered: <strong id="answeredCount">0</strong>/<strong id="totalQ">${TOTAL}</strong>`;
+    setProgressBadge();
 
   }catch(err){
     console.error(err);
