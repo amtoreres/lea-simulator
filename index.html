@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Animal Science — Licensure Mock Exam</title>
-<meta name="description" content="Interactive 100-question animal science mock exam — import JSON, timer, review mode, save/load."/>
+<meta name="description" content="Interactive 100-question animal science mock exam — import JSON, timer, review mode, load, export results."/>
 <style>
   :root{
     --bg:#f6fbf6; --panel:#ecf7ec; --card:#ffffff;
@@ -26,7 +26,6 @@
   .layout{display:grid;grid-template-columns:260px 1fr;gap:12px}
   /* Sidebar */
   aside{display:flex;flex-direction:column;gap:12px}
-  .sidebar-top{display:flex;gap:8px;align-items:center}
   #qGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;max-height:520px;overflow:auto;padding:6px}
   .qnum{background:linear-gradient(180deg,#f8fffb,#f0fff0);border-radius:8px;padding:8px;text-align:center;cursor:pointer;border:1px solid rgba(10,60,20,0.05);font-weight:600}
   .qnum.current{outline:2px solid rgba(46,125,50,0.18)}
@@ -51,10 +50,9 @@
   .choice.wrong{background:linear-gradient(90deg,#ef444433,#ef444422);border-color:rgba(239,68,68,0.25)}
   .nav{display:flex;gap:8px;align-items:center;margin-top:12px}
 
-  /* Base buttons */
+  /* Buttons */
   button.btn{background:var(--primary);color:white;padding:10px 12px;border-radius:8px;border:0;cursor:pointer}
   button.ghost{background:transparent;border:1px solid rgba(6,54,26,0.06);color:var(--muted);padding:8px 10px;border-radius:8px;cursor:pointer}
-
   button.btn, button.ghost { transition: all 0.2s ease, transform 0.15s ease; }
   button.btn:hover { background:#256928; box-shadow:0 4px 12px rgba(0,0,0,0.15); transform:translateY(-2px); }
   button.btn:active { transform:scale(0.97); box-shadow:0 2px 6px rgba(0,0,0,0.2) inset; }
@@ -67,16 +65,19 @@
 
   .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   footer.small{font-size:13px;color:var(--muted);margin-top:10px}
+  /* result modal */
   .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,20,10,0.45);z-index:60}
   .modal .box{background:white;padding:22px;border-radius:12px;min-width:320px;max-width:90%;text-align:center}
   .result-big{font-size:22px;font-weight:800;color:var(--primary);margin:8px 0}
+  /* responsive */
   @media(max-width:980px){
     .layout{grid-template-columns:1fr;gap:10px}
     aside{order:2}
     .brand h1{font-size:18px}
     #qGrid{grid-template-columns:repeat(10,1fr)}
   }
-  #reviewBtn { display:none !important; }
+  /* Hide review button as review before submit is disabled */
+  #reviewBtn { display: none !important; }
   .logo{ width:80px; height:80px; font-size:40px; line-height:1; }
 </style>
 </head>
@@ -95,7 +96,6 @@
         <div class="small">Answered: <strong id="answeredCount">0</strong>/<strong id="totalQ">0</strong></div>
         <div id="timer" title="Time remaining">--:--:--</div>
         <div style="display:flex;gap:8px;align-items:center">
-          <button id="saveBtn" class="ghost" title="Save progress (S)">Save</button>
           <button id="loadBtn" class="ghost" title="Load progress (L)">Load</button>
           <label class="ghost" style="padding:6px;border-radius:8px;cursor:pointer">
             <input id="fileInput" type="file" accept="application/json" style="display:none">Import JSON
@@ -111,8 +111,6 @@
       </div>
       <div class="tools">
         <label class="small">Timer (mins): <input id="timerInput" type="number" value="60" min="1" style="width:70px;margin-left:6px"></label>
-        <label class="small"><input id="autoSave" type="checkbox"> Auto-save</label>
-        <!-- Randomize buttons removed; randomization happens on import -->
       </div>
     </div>
 
@@ -162,7 +160,7 @@
           </div>
         </div>
 
-        <footer class="small">Tip: Use the <strong>Import JSON</strong> button to upload your exam file. Choices and question order are randomized automatically.</footer>
+        <footer class="small">Tip: Import your JSON to start. Choices and question order are randomized automatically.</footer>
       </main>
     </div>
   </div>
@@ -206,15 +204,12 @@ const reviewBtn = document.getElementById('reviewBtn');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const clearAnswersBtn = document.getElementById('clearAnswers');
-const saveBtn = document.getElementById('saveBtn');
 const loadBtn = document.getElementById('loadBtn');
 const fileInput = document.getElementById('fileInput');
 const saveLocalBtn = document.getElementById('saveLocalBtn');
 const resetBtn = document.getElementById('resetBtn');
 const closeResultBtn = document.getElementById('closeResult');
 const timerInput = document.getElementById('timerInput');
-const autoSaveCheckbox = document.getElementById('autoSave');
-// randomize buttons removed
 
 /* --- Helpers --- */
 function safeText(s){ return String(s||'').replace(/\s+$/,'').trim(); }
@@ -289,15 +284,15 @@ function renderQuestion(idx){
   updateAnsweredCount();
 }
 
-/* --- Answer selection --- */
+/* --- Answer selection (silent autosave) --- */
 function selectAnswer(qIdx, cIdx){
   if (reviewMode) return;
   USER[qIdx] = cIdx;
-  saveProgressToLocal(false);
+  saveProgressToLocal(false);   // silent save to localStorage
   renderQuestion(qIdx);
 }
 
-/* --- Import JSON --- */
+/* --- Import JSON (randomize choices + questions) --- */
 fileInput.addEventListener('change', e=>{
   if(e.target.files.length>0){
     importJSONFile(e.target.files[0]);
@@ -317,7 +312,7 @@ function importJSONFile(file){
   reader.readAsText(file);
 }
 
-/* --- Load questions into app (optionally randomize) --- */
+/* --- Load questions (with optional randomization) --- */
 function loadQuestionsFromArray(arr, shouldRandomize=false){
   QUESTIONS = arr.map((q,idx)=>({
     question: q.question || q.prompt || `Question ${idx+1}`,
@@ -325,12 +320,12 @@ function loadQuestionsFromArray(arr, shouldRandomize=false){
     answer: (typeof q.answer === 'number' ? q.answer : (q.answer === null ? null : (typeof q.correct === 'number'? q.correct : null)))
   }));
 
-  // sanitize answer indices
+  // sanitize answers
   QUESTIONS.forEach(q=>{
     if(q.answer === null || q.answer >= q.choices.length || q.answer < 0) q.answer = null;
   });
 
-  // 1) shuffle choices per question (and fix answer index)
+  // 1) shuffle choices per question and fix answer index
   if (shouldRandomize){
     QUESTIONS.forEach(q=>{
       const arr = q.choices.map((ch,idx)=>({choice: ch, idx}));
@@ -346,7 +341,7 @@ function loadQuestionsFromArray(arr, shouldRandomize=false){
   TOTAL = QUESTIONS.length;
   USER = new Array(TOTAL).fill(null);
 
-  // 2) shuffle question order (carry USER answers in parallel — they’re all null initially)
+  // 2) shuffle question order (answers are all null initially)
   if (shouldRandomize){
     const zipped = QUESTIONS.map((q,i)=>({q, a: USER[i]}));
     shuffleArray(zipped);
@@ -395,11 +390,11 @@ function submitExam(){
   // Render current question with review mode (highlight correct/wrong)
   renderReviewQuestion(CURRENT);
 
-  // Also update grid colors
+  // Update grid colors
   updateGridForReview();
 }
 
-/* --- Render review mode for question --- */
+/* --- Render question in review mode --- */
 function renderReviewQuestion(idx){
   if(idx < 0) idx = 0;
   if(idx >= TOTAL) idx = TOTAL - 1;
@@ -427,7 +422,7 @@ function renderReviewQuestion(idx){
   updateAnsweredCount();
 }
 
-/* --- Update grid on review --- */
+/* --- Update grid after submit --- */
 function updateGridForReview(){
   const nodes = qGrid.querySelectorAll('.qnum');
   nodes.forEach(n=>{
@@ -488,10 +483,7 @@ document.addEventListener('keydown', (e)=>{
       }
     }
   }
-  else if(e.key.toLowerCase() === 's' && e.ctrlKey){
-    e.preventDefault();
-    saveProgressToLocal(true);
-  }
+  // Removed Ctrl+S shortcut (no explicit Save UI anymore)
 });
 
 /* --- Clear all answers --- */
@@ -556,7 +548,6 @@ function loadProgressFromLocal(){
   alert('No saved progress found.');
   return false;
 }
-saveBtn.addEventListener('click', ()=>saveProgressToLocal(true));
 loadBtn.addEventListener('click', loadProgressFromLocal);
 
 /* --- Save as JSON file (user progress) --- */
@@ -621,10 +612,12 @@ function resetTimer(){
     }
   },1000);
 }
+// Start timer initially
 resetTimer();
 
 /* --- Initialization --- */
 function init(){
+  // Disable buttons that require questions before loaded
   submitBtn.disabled = true;
   prevBtn.disabled = true;
   nextBtn.disabled = true;
