@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Animal Science — Licensure Mock Exam</title>
-<meta name="description" content="Interactive 100-question animal science mock exam — import JSON, timer, review mode, load, export results."/>
+<meta name="description" content="Interactive 100-question animal science mock exam — timer, review mode, load, export results."/>
 <style>
   :root{
     --bg:#f6fbf6; --panel:#ecf7ec; --card:#ffffff;
@@ -18,12 +18,13 @@
   .app{max-width:var(--maxw);margin:18px auto;padding:18px}
   header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
   .brand{display:flex;align-items:center;gap:12px}
-  .logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--primary),#66bb6a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;box-shadow:var(--shadow)}
+  .logo{width:80px;height:80px;border-radius:12px;background:linear-gradient(135deg,var(--primary),#66bb6a);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:40px;line-height:1;box-shadow:var(--shadow)}
   h1{margin:0;font-size:20px}
   .controls{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .small{font-size:13px;color:var(--muted)}
   .card{background:var(--card);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow)}
   .layout{display:grid;grid-template-columns:260px 1fr;gap:12px}
+
   /* Sidebar */
   aside{display:flex;flex-direction:column;gap:12px}
   #qGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;max-height:520px;overflow:auto;padding:6px}
@@ -32,6 +33,7 @@
   .qnum.answered{background:linear-gradient(90deg,#16a34a,#059669);color:#fff}
   .qnum.correct{background:#16a34a;color:white}
   .qnum.wrong{background:#ef4444;color:white}
+
   /* Main */
   main{display:flex;flex-direction:column;gap:12px}
   .meta{display:flex;align-items:center;gap:12px}
@@ -78,7 +80,6 @@
   }
   /* Hide review button as review before submit is disabled */
   #reviewBtn { display: none !important; }
-  .logo{ width:80px; height:80px; font-size:40px; line-height:1; }
 </style>
 </head>
 <body>
@@ -88,7 +89,7 @@
         <div class="logo">🌱</div>
         <div>
           <h1>Animal Science — Mock Licensure Exam</h1>
-          <div class="small">Prepared for licensure review — import your JSON to begin</div>
+          <div class="small">Prepared for licensure review — pick a set to begin</div>
         </div>
       </div>
 
@@ -96,16 +97,23 @@
         <div class="small">Answered: <strong id="answeredCount">0</strong>/<strong id="totalQ">0</strong></div>
         <div id="timer" title="Time remaining">--:--:--</div>
         <div style="display:flex;gap:8px;align-items:center">
+          <!-- NEW: Category & Set pickers -->
+          <select id="categorySelect" class="ghost" style="padding:6px;border-radius:8px;min-width:180px">
+            <option value="">Select category…</option>
+          </select>
+          <select id="setSelect" class="ghost" style="padding:6px;border-radius:8px;min-width:180px" disabled>
+            <option value="">Select set…</option>
+          </select>
+          <button id="loadSetBtn" class="btn" disabled>Load set</button>
+
+          <!-- Keep load progress -->
           <button id="loadBtn" class="ghost" title="Load progress (L)">Load</button>
-          <label class="ghost" style="padding:6px;border-radius:8px;cursor:pointer">
-            <input id="fileInput" type="file" accept="application/json" style="display:none">Import JSON
-          </label>
         </div>
       </div>
     </header>
 
     <div class="meta" style="margin-bottom:8px">
-      <div id="examTitle" class="small">Exam: Animal Science</div>
+      <div id="examTitle" class="small">Exam: (no set loaded)</div>
       <div id="progressWrap">
         <div class="progress"><i id="progressFill"></i></div>
       </div>
@@ -125,15 +133,18 @@
 
         <div style="margin-top:12px">
           <div class="small">Options</div>
-          <div style="display:flex;gap:8px;margin-top:8px">
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
             <button id="reviewBtn" class="ghost">Review answers</button>
             <button id="submitBtn" class="btn">Submit exam</button>
           </div>
         </div>
 
         <div style="margin-top:12px">
-          <div class="small">Import</div>
-          <div style="margin-top:8px" class="small">Format: <code>[{"question":"...","choices":["A","B","C","D"],"answer":0},...]</code></div>
+          <div class="small">Data</div>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <button id="saveLocalBtn" class="ghost">Save file</button>
+            <button id="resetBtn" class="ghost">Reset exam</button>
+          </div>
         </div>
       </aside>
 
@@ -143,7 +154,7 @@
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
               <div class="small">Question <strong id="qIndex">1</strong> / <strong id="totalQs">0</strong></div>
-              <div id="questionText">Load a JSON file to start the exam.</div>
+              <div id="questionText">Pick a category and set, then click “Load set”.</div>
             </div>
             <div class="small" style="text-align:right">Keyboard: ←/→ to navigate • 1–4 to answer</div>
           </div>
@@ -154,13 +165,13 @@
             <button id="prevBtn" class="ghost">← Previous</button>
             <button id="nextBtn" class="ghost">Next →</button>
             <div style="margin-left:auto;display:flex;gap:8px">
-              <button id="saveLocalBtn" class="ghost">Save file</button>
-              <button id="resetBtn" class="ghost">Reset exam</button>
+              <button id="saveLocalBtn2" class="ghost">Save file</button>
+              <button id="resetBtn2" class="ghost">Reset exam</button>
             </div>
           </div>
         </div>
 
-        <footer class="small">Tip: Import your JSON to start. Choices and question order are randomized automatically.</footer>
+        <footer class="small">Tip: Choices and question order are randomized automatically.</footer>
       </main>
     </div>
   </div>
@@ -205,11 +216,17 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const clearAnswersBtn = document.getElementById('clearAnswers');
 const loadBtn = document.getElementById('loadBtn');
-const fileInput = document.getElementById('fileInput');
 const saveLocalBtn = document.getElementById('saveLocalBtn');
+const saveLocalBtn2 = document.getElementById('saveLocalBtn2');
 const resetBtn = document.getElementById('resetBtn');
+const resetBtn2 = document.getElementById('resetBtn2');
 const closeResultBtn = document.getElementById('closeResult');
 const timerInput = document.getElementById('timerInput');
+
+/* NEW: picker refs */
+const categorySelect = document.getElementById('categorySelect');
+const setSelect = document.getElementById('setSelect');
+const loadSetBtn = document.getElementById('loadSetBtn');
 
 /* --- Helpers --- */
 function safeText(s){ return String(s||'').replace(/\s+$/,'').trim(); }
@@ -269,6 +286,8 @@ function renderQuestion(idx){
   choices.forEach((c,i)=>{
     const el = document.createElement('div');
     el.className = 'choice';
+    el.setAttribute('role','button');
+    el.setAttribute('aria-pressed', USER[idx] === i ? 'true' : 'false');
     if (!reviewMode && USER[idx] === i) el.classList.add('selected');
     el.innerHTML = `<div class="letter">${String.fromCharCode(65+i)}</div><div style="flex:1">${c}</div>`;
     if (!reviewMode){
@@ -290,26 +309,6 @@ function selectAnswer(qIdx, cIdx){
   USER[qIdx] = cIdx;
   saveProgressToLocal(false);   // silent save to localStorage
   renderQuestion(qIdx);
-}
-
-/* --- Import JSON (randomize choices + questions) --- */
-fileInput.addEventListener('change', e=>{
-  if(e.target.files.length>0){
-    importJSONFile(e.target.files[0]);
-  }
-  e.target.value = '';
-});
-
-function importJSONFile(file){
-  const reader = new FileReader();
-  reader.onload = ()=>{
-    try{
-      const parsed = JSON.parse(reader.result);
-      loadQuestionsFromArray(parsed, /*shouldRandomize=*/true);
-      alert('Imported ' + (parsed.length||0) + ' questions. (Shuffled)');
-    }catch(e){ alert('Invalid JSON file.'); }
-  };
-  reader.readAsText(file);
 }
 
 /* --- Load questions (with optional randomization) --- */
@@ -341,7 +340,7 @@ function loadQuestionsFromArray(arr, shouldRandomize=false){
   TOTAL = QUESTIONS.length;
   USER = new Array(TOTAL).fill(null);
 
-  // 2) shuffle question order (answers are all null initially)
+  // 2) shuffle question order (answers all null initially)
   if (shouldRandomize){
     const zipped = QUESTIONS.map((q,i)=>({q, a: USER[i]}));
     shuffleArray(zipped);
@@ -374,7 +373,6 @@ function submitExam(){
   submitBtn.disabled = true;
   prevBtn.disabled = true;
   nextBtn.disabled = true;
-  clearAnswersBtn.disabled = true;
 
   // Calculate score
   let correct = 0;
@@ -483,7 +481,6 @@ document.addEventListener('keydown', (e)=>{
       }
     }
   }
-  // Removed Ctrl+S shortcut (no explicit Save UI anymore)
 });
 
 /* --- Clear all answers --- */
@@ -495,7 +492,6 @@ clearAnswersBtn.addEventListener('click', ()=>{
   submitBtn.disabled = false;
   prevBtn.disabled = false;
   nextBtn.disabled = false;
-  clearAnswersBtn.disabled = false;
   renderQuestion(0);
   buildGrid();
   updateAnsweredCount();
@@ -537,7 +533,6 @@ function loadProgressFromLocal(){
       submitBtn.disabled = false;
       prevBtn.disabled = false;
       nextBtn.disabled = false;
-      clearAnswersBtn.disabled = false;
       buildGrid();
       renderQuestion(CURRENT);
       updateAnsweredCount();
@@ -550,16 +545,19 @@ function loadProgressFromLocal(){
 }
 loadBtn.addEventListener('click', loadProgressFromLocal);
 
+/* Duplicate save/reset controls in main card */
+saveLocalBtn.addEventListener('click', ()=> downloadProgress());
+saveLocalBtn2.addEventListener('click', ()=> downloadProgress());
+resetBtn.addEventListener('click', ()=> resetExam());
+resetBtn2.addEventListener('click', ()=> resetExam());
+
 /* --- Save as JSON file (user progress) --- */
-saveLocalBtn.addEventListener('click', ()=>{
+function downloadProgress(){
   if(TOTAL === 0) {
     alert('No exam loaded');
     return;
   }
-  const data = {
-    questions: QUESTIONS,
-    userAnswers: USER
-  };
+  const data = { questions: QUESTIONS, userAnswers: USER };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -569,10 +567,10 @@ saveLocalBtn.addEventListener('click', ()=>{
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-});
+}
 
 /* --- Reset exam --- */
-resetBtn.addEventListener('click', ()=>{
+function resetExam(){
   if(confirm('Reset the exam and clear all data?')){
     QUESTIONS = [];
     USER = [];
@@ -580,15 +578,14 @@ resetBtn.addEventListener('click', ()=>{
     TOTAL = 0;
     reviewMode = false;
     qGrid.innerHTML = '';
-    questionText.textContent = 'Load a JSON file to start the exam.';
+    questionText.textContent = 'Pick a category and set, then click “Load set”.';
     choicesEl.innerHTML = '';
     updateAnsweredCount();
     submitBtn.disabled = true;
     prevBtn.disabled = true;
     nextBtn.disabled = true;
-    clearAnswersBtn.disabled = false;
   }
-});
+}
 
 /* --- Timer --- */
 let timerSeconds = 3600; // default 1hr
@@ -615,16 +612,86 @@ function resetTimer(){
 // Start timer initially
 resetTimer();
 
-/* --- Initialization --- */
-function init(){
+/* === NEW: Manifest-driven set loader === */
+let MANIFEST = null;
+let FILE_BY_SET_ID = new Map();
+
+async function fetchManifest(){
+  // Hosted on GitHub Pages? This is same-origin and CORS-safe.
+  const res = await fetch('questions/index.json', { cache: 'no-cache' });
+  if(!res.ok) throw new Error('Failed to load question manifest.');
+  return res.json();
+}
+function populateCategorySelect(){
+  categorySelect.innerHTML = '<option value="">Select category…</option>';
+  MANIFEST.categories.forEach(cat=>{
+    const opt = document.createElement('option');
+    opt.value = cat.id;
+    opt.textContent = cat.label || cat.id;
+    categorySelect.appendChild(opt);
+  });
+}
+function populateSetSelect(catId){
+  setSelect.innerHTML = '<option value="">Select set…</option>';
+  setSelect.disabled = true;
+  loadSetBtn.disabled = true;
+  const cat = MANIFEST.categories.find(c => c.id === catId);
+  if(!cat) return;
+  FILE_BY_SET_ID = new Map();
+  cat.sets.forEach(s=>{
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.label || s.id;
+    setSelect.appendChild(opt);
+    FILE_BY_SET_ID.set(s.id, s.file);
+  });
+  setSelect.disabled = false;
+}
+async function fetchAndLoadSet(setId){
+  const file = FILE_BY_SET_ID.get(setId);
+  if(!file){ alert('Unknown set.'); return; }
+  try{
+    const res = await fetch(file, { cache: 'no-cache' });
+    if(!res.ok) throw new Error('Failed to fetch questions.');
+    const arr = await res.json();
+    loadQuestionsFromArray(arr, /*shouldRandomize=*/true);
+    const catLabel = categorySelect.selectedOptions[0]?.textContent || 'Exam';
+    const setLabel = setSelect.selectedOptions[0]?.textContent || '';
+    document.getElementById('examTitle').textContent = `Exam: ${catLabel} — ${setLabel}`;
+  }catch(err){
+    console.error(err);
+    alert('Could not load the selected set.');
+  }
+}
+
+/* Picker events */
+categorySelect.addEventListener('change', e=>{
+  populateSetSelect(e.target.value);
+});
+setSelect.addEventListener('change', e=>{
+  loadSetBtn.disabled = !e.target.value;
+});
+loadSetBtn.addEventListener('click', ()=>{
+  if(setSelect.value) fetchAndLoadSet(setSelect.value);
+});
+
+/* Boot */
+(async function init(){
   // Disable buttons that require questions before loaded
   submitBtn.disabled = true;
   prevBtn.disabled = true;
   nextBtn.disabled = true;
-  clearAnswersBtn.disabled = false;
   updateAnsweredCount();
-}
-init();
+
+  // Try to load manifest
+  try{
+    MANIFEST = await fetchManifest();
+    populateCategorySelect();
+  }catch(e){
+    console.error(e);
+    alert('Manifest not found. Make sure questions/index.json exists.');
+  }
+})();
 </script>
 </body>
 </html>
