@@ -420,7 +420,7 @@ function renderQuestion(idx){
 function selectAnswer(qIdx, cIdx){
   if (reviewMode) return;
   USER[qIdx] = cIdx;
-  saveProgressToLocal(false);
+  saveProgressToLocal(false); // includes timerSeconds
   renderQuestion(qIdx);
 }
 
@@ -476,7 +476,7 @@ function submitExam(force = false, showResult = true){
   if(reviewMode) return;
 
   if(!force){
-    // Fallback (not used by default UI anymore).
+    // Fallback (kept for safety, not used by UI now)
     const unanswered = USER.filter(x=>x===null).length;
     if(unanswered>0){
       if(!confirm(`You have ${unanswered} unanswered questions. Submit anyway?`)) return;
@@ -485,6 +485,9 @@ function submitExam(force = false, showResult = true){
   }
 
   reviewMode = true;
+
+  // Stop timer on submit
+  if (TIMER) clearInterval(TIMER);
 
   // Disable buttons that allow changes
   submitBtn.disabled = true;
@@ -629,15 +632,17 @@ function saveProgressToLocal(alertUser=true){
     questions: QUESTIONS,
     userAnswers: USER,
     current: CURRENT,
+    timerSeconds,          // << persist time remaining
     timestamp: Date.now()
   };
   try {
     localStorage.setItem('mockExamData', JSON.stringify(data));
     if(alertUser) alert('Progress saved.');
   } catch(e){
-    alert('Failed to save progress.');
+    if(alertUser) alert('Failed to save progress.');
   }
 }
+
 function loadProgressFromLocal(){
   try {
     const data = JSON.parse(localStorage.getItem('mockExamData'));
@@ -646,6 +651,9 @@ function loadProgressFromLocal(){
       USER = data.userAnswers;
       TOTAL = QUESTIONS.length;
       CURRENT = data.current || 0;
+      // Restore timer (paused-at value)
+      timerSeconds = typeof data.timerSeconds === 'number' ? Math.max(0, Math.floor(data.timerSeconds)) : 3600;
+
       reviewMode = false;
       submitBtn.disabled = false;
       prevBtn.disabled = false;
@@ -653,6 +661,10 @@ function loadProgressFromLocal(){
       buildGrid();
       renderQuestion(CURRENT);
       updateAnsweredCount();
+
+      // Resume timer from saved remaining seconds
+      resetTimer();
+
       alert('Progress loaded.');
       return true;
     }
@@ -660,10 +672,17 @@ function loadProgressFromLocal(){
   alert('No saved progress found.');
   return false;
 }
+
 loadBtn.addEventListener('click', loadProgressFromLocal);
+
+// Save on tab/window close/refresh to keep latest timer value
+window.addEventListener('beforeunload', ()=>{
+  saveProgressToLocal(false);
+});
 
 /* --- Timer --- */
 let timerSeconds = 3600; // default 1hr
+let lastTimerAutosave = 0;
 timerInput.addEventListener('change', e=>{
   const val = Number(e.target.value);
   if(val > 0){
@@ -743,17 +762,31 @@ document.addEventListener('keydown', (e)=>{
 /* --- Timer runner --- */
 function resetTimer(){
   if(TIMER) clearInterval(TIMER);
+  // If the restored/remaining time is already 0, show the time-up modal immediately.
+  if (timerSeconds <= 0){
+    timerEl.textContent = formatTime(0);
+    openTimeUpModal();
+    return;
+  }
   timerEl.textContent = formatTime(timerSeconds);
   TIMER = setInterval(()=>{
     timerSeconds--;
     timerEl.textContent = formatTime(timerSeconds);
+
+    // Throttled autosave every 3 seconds
+    const now = Date.now();
+    if (now - lastTimerAutosave > 3000){
+      saveProgressToLocal(false);
+      lastTimerAutosave = now;
+    }
+
     if(timerSeconds<=0){
       clearInterval(TIMER);
       openTimeUpModal();
     }
   },1000);
 }
-// Do not start timer on load
+// Do not start timer on load until a set is loaded or progress is restored
 
 /* === Manifest-driven set loader === */
 let MANIFEST = null;
@@ -809,6 +842,9 @@ async function fetchAndLoadSet(setId){
     // Reset the badge to "Answered" for a new run
     statusBadge.innerHTML = `Answered: <strong id="answeredCount">0</strong>/<strong id="totalQ">${TOTAL}</strong>`;
     setProgressBadge();
+
+    // Immediately save initial state (so timer persists even with no answers yet)
+    saveProgressToLocal(false);
 
   }catch(err){
     console.error(err);
