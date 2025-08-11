@@ -39,7 +39,7 @@
     gap:8px;
   }
 
-  /* Badges — refreshed to match theme */
+  /* Badges — theme matched */
   .badge{
     display:inline-flex; align-items:center; gap:8px;
     font-size:15px; font-weight:700;
@@ -123,10 +123,17 @@
     transform:translateY(8px) scale(.98); opacity:0; transition:transform .25s ease, opacity .25s ease;
   }
   .modal.show .box{ transform:translateY(0) scale(1); opacity:1; }
+
+  /* Result numbers */
   .result-big{font-size:22px;font-weight:800;color:var(--primary);margin:8px 0}
 
-  /* Time-up modal extras */
-  #timeUpModal{ z-index:70; } /* above other modals */
+  /* Time-up modal extras + stronger backdrop blur/dim */
+  #timeUpModal{
+    z-index:70;
+    background:rgba(3,20,10,0.60);
+    backdrop-filter:blur(6px) saturate(1.05);
+    -webkit-backdrop-filter:blur(6px) saturate(1.05);
+  }
   .pulse{
     width:72px;height:72px;border-radius:16px;margin:0 auto 10px auto;
     background:conic-gradient(from 0deg, #66bb6a, var(--primary));
@@ -236,12 +243,12 @@
     </div>
   </div>
 
-  <!-- Time-Up Modal (custom instead of alert) -->
+  <!-- Time-Up Modal (custom) -->
   <div id="timeUpModal" class="modal hidden" style="display:none">
     <div class="box" role="dialog" aria-labelledby="timeUpTitle" aria-describedby="timeUpDesc" aria-modal="true">
       <div class="pulse" aria-hidden="true">⏰</div>
       <h3 id="timeUpTitle" style="margin:6px 0 2px 0">Time is up!</h3>
-      <p id="timeUpDesc" class="small" style="margin:0 0 6px 0">Your exam is being submitted automatically.</p>
+      <p id="timeUpDesc" class="small" style="margin:0 0 6px 0">Click “Okay” to submit your exam.</p>
       <div style="margin-top:10px;display:flex;gap:8px;justify-content:center">
         <button id="timeUpOk" class="btn" autofocus>Okay</button>
       </div>
@@ -279,7 +286,7 @@ const loadBtn = document.getElementById('loadBtn');
 const closeResultBtn = document.getElementById('closeResult');
 const timerInput = document.getElementById('timerInput');
 
-/* New: time-up modal refs */
+/* Time-up modal refs */
 const timeUpModal = document.getElementById('timeUpModal');
 const timeUpOk = document.getElementById('timeUpOk');
 
@@ -441,8 +448,8 @@ function loadQuestionsFromArray(arr, shouldRandomize=false){
   nextBtn.disabled = false;
 }
 
-/* --- Submit exam (supports forced submit without confirmations) ---
-   Added: showResult parameter (default true) so timeout can skip extra popups if needed */
+/* --- Submit exam (supports forced submit) ---
+   NOTE: called after user confirms on the time-up modal for auto-submit */
 function submitExam(force = false, showResult = true){
   if(reviewMode) return;
 
@@ -650,16 +657,26 @@ timerInput.addEventListener('change', e=>{
   }
 });
 
-/* New: custom time-up modal logic */
+/* --- Time-up modal flow (blurred, no review mode until Okay) --- */
 function openTimeUpModal(){
   timeUpModal.style.display = 'flex';
   setTimeout(()=> timeUpModal.classList.add('show'), 10);
+  // prevent page scroll under modal
+  document.body.style.overflow = 'hidden';
 }
 function closeTimeUpModal(){
   timeUpModal.classList.remove('show');
-  setTimeout(()=> timeUpModal.style.display = 'none', 250);
+  setTimeout(()=> {
+    timeUpModal.style.display = 'none';
+    document.body.style.overflow = ''; // restore scroll
+  }, 250);
 }
-timeUpOk.addEventListener('click', closeTimeUpModal);
+timeUpOk.addEventListener('click', ()=>{
+  // close the modal, then submit (enter review mode now)
+  closeTimeUpModal();
+  // small delay so the fade-out feels natural
+  setTimeout(()=> submitExam(true, /*showResult=*/true), 150);
+});
 
 function resetTimer(){
   if(TIMER) clearInterval(TIMER);
@@ -669,14 +686,8 @@ function resetTimer(){
     timerEl.textContent = formatTime(timerSeconds);
     if(timerSeconds<=0){
       clearInterval(TIMER);
-
-      // 🔔 Show custom modal instead of alert, then auto-submit
+      // Show custom modal with strong blur/dim; DO NOT auto-submit yet.
       openTimeUpModal();
-
-      // Give the modal a moment to animate in, then submit.
-      setTimeout(()=>{
-        submitExam(true, /*showResult=*/true);
-      }, 600);
     }
   },1000);
 }
