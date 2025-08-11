@@ -103,7 +103,7 @@
   button.ghost:hover { background:rgba(6,54,26,0.05); border-color:rgba(6,54,26,0.2); transform:translateY(-2px); box-shadow:0 2px 6px rgba(0,0,0,0.08); }
   button.ghost:active { transform:scale(0.97); box-shadow:0 2px 4px rgba(0,0,0,0.15) inset; }
 
-  /* Danger variant for confirm modal primary */
+  /* Danger variant */
   button.btn.danger { background: var(--danger); }
   button.btn.danger:hover { background:#cc3535; }
 
@@ -131,7 +131,7 @@
   /* Result numbers */
   .result-big{font-size:22px;font-weight:800;color:var(--primary);margin:8px 0}
 
-  /* Time-up modal extras + stronger backdrop blur/dim */
+  /* Time-up modal extras */
   #timeUpModal{
     z-index:70;
     background:rgba(3,20,10,0.60);
@@ -247,7 +247,7 @@
     </div>
   </div>
 
-  <!-- Time-Up Modal (custom) -->
+  <!-- Time-Up Modal -->
   <div id="timeUpModal" class="modal hidden" style="display:none">
     <div class="box" role="dialog" aria-labelledby="timeUpTitle" aria-describedby="timeUpDesc" aria-modal="true">
       <div class="pulse" aria-hidden="true">⏰</div>
@@ -281,11 +281,11 @@ let TIMER = null;
 let reviewMode = false;
 let isModalOpen = false;       // disables exam keyboard shortcuts while true
 let activeModal = null;        // 'confirm' | 'timeup' | null
+let PENDING_UI = null;         // selections to apply after manifest loads (if needed)
 
 /* --- DOM refs --- */
 const qGrid = document.getElementById('qGrid');
 const qIndexEl = document.getElementById('qIndex');
-const totalQsEl = document.getElementById('totalQs');
 const questionText = document.getElementById('questionText');
 const choicesEl = document.getElementById('choices');
 const answeredCountEl = document.getElementById('answeredCount');
@@ -303,6 +303,9 @@ const clearAnswersBtn = document.getElementById('clearAnswers');
 const loadBtn = document.getElementById('loadBtn');
 const closeResultBtn = document.getElementById('closeResult');
 const timerInput = document.getElementById('timerInput');
+const categorySelect = document.getElementById('categorySelect');
+const setSelect = document.getElementById('setSelect');
+const loadSetBtn = document.getElementById('loadSetBtn');
 
 /* Time-up modal refs */
 const timeUpModal = document.getElementById('timeUpModal');
@@ -312,11 +315,6 @@ const timeUpOk = document.getElementById('timeUpOk');
 const confirmSubmitModal = document.getElementById('confirmSubmitModal');
 const confirmCancel = document.getElementById('confirmCancel');
 const confirmSubmitNow = document.getElementById('confirmSubmitNow');
-
-/* Picker refs */
-const categorySelect = document.getElementById('categorySelect');
-const setSelect = document.getElementById('setSelect');
-const loadSetBtn = document.getElementById('loadSetBtn');
 
 /* --- Helpers --- */
 function safeText(s){ return String(s||'').replace(/\s+$/,'').trim(); }
@@ -341,8 +339,6 @@ function updateAnsweredCount(){
   answeredCountEl.textContent = count;
   totalQEl.textContent = TOTAL;
   document.getElementById('totalQs').textContent = TOTAL;
-  document.getElementById('answeredCount').textContent = count;
-  document.getElementById('totalQ').textContent = TOTAL;
   progressFill.style.width = TOTAL? Math.round((count/TOTAL)*100) + '%' : '0%';
 
   if (!reviewMode){
@@ -420,7 +416,7 @@ function renderQuestion(idx){
 function selectAnswer(qIdx, cIdx){
   if (reviewMode) return;
   USER[qIdx] = cIdx;
-  saveProgressToLocal(false); // includes timerSeconds
+  saveProgressToLocal(false);
   renderQuestion(qIdx);
 }
 
@@ -476,7 +472,7 @@ function submitExam(force = false, showResult = true){
   if(reviewMode) return;
 
   if(!force){
-    // Fallback (kept for safety, not used by UI now)
+    // (Fallback confirm path kept for safety)
     const unanswered = USER.filter(x=>x===null).length;
     if(unanswered>0){
       if(!confirm(`You have ${unanswered} unanswered questions. Submit anyway?`)) return;
@@ -625,14 +621,25 @@ clearAnswersBtn.addEventListener('click', ()=>{
   updateAnsweredCount();
 });
 
-/* --- Save/Load progress from localStorage --- */
+/* === Persistence (Save/Load) === */
+function currentSelectionInfo(){
+  return {
+    categoryId: categorySelect.value || null,
+    setId: setSelect.value || null,
+    categoryLabel: categorySelect.selectedOptions[0]?.textContent || '',
+    setLabel: setSelect.selectedOptions[0]?.textContent || ''
+  };
+}
+
 function saveProgressToLocal(alertUser=true){
   if(TOTAL === 0) return;
+  const sel = currentSelectionInfo();
   const data = {
     questions: QUESTIONS,
     userAnswers: USER,
     current: CURRENT,
-    timerSeconds,          // << persist time remaining
+    timerSeconds,
+    ...sel,
     timestamp: Date.now()
   };
   try {
@@ -640,6 +647,45 @@ function saveProgressToLocal(alertUser=true){
     if(alertUser) alert('Progress saved.');
   } catch(e){
     if(alertUser) alert('Failed to save progress.');
+  }
+}
+
+function applySelectionsToUI(categoryId, setId, categoryLabel, setLabel){
+  // If we have the manifest and the category exists, use proper options
+  if (MANIFEST && MANIFEST.categories && MANIFEST.categories.find(c=>c.id===categoryId)){
+    categorySelect.value = categoryId;
+    populateSetSelect(categoryId);
+    if (setId){
+      // If set exists in manifest, select it; otherwise, keep the first option
+      const hasSet = Array.from(setSelect.options).some(o=>o.value===setId);
+      if (hasSet) setSelect.value = setId;
+    }
+    setSelect.disabled = false;
+    loadSetBtn.disabled = !setSelect.value;
+    return;
+  }
+
+  // Fallback: inject options so UI reflects saved state immediately
+  if (categoryId){
+    if (![...categorySelect.options].some(o=>o.value===categoryId)){
+      const opt = document.createElement('option');
+      opt.value = categoryId;
+      opt.textContent = categoryLabel || categoryId;
+      categorySelect.appendChild(opt);
+    }
+    categorySelect.value = categoryId;
+  }
+
+  if (setId){
+    if (setSelect.disabled) setSelect.disabled = false;
+    if (![...setSelect.options].some(o=>o.value===setId)){
+      const opt2 = document.createElement('option');
+      opt2.value = setId;
+      opt2.textContent = setLabel || setId;
+      setSelect.appendChild(opt2);
+    }
+    setSelect.value = setId;
+    loadSetBtn.disabled = false;
   }
 }
 
@@ -651,8 +697,21 @@ function loadProgressFromLocal(){
       USER = data.userAnswers;
       TOTAL = QUESTIONS.length;
       CURRENT = data.current || 0;
-      // Restore timer (paused-at value)
+
+      // Restore timer (paused value)
       timerSeconds = typeof data.timerSeconds === 'number' ? Math.max(0, Math.floor(data.timerSeconds)) : 3600;
+
+      // Restore UI labels/title immediately
+      const catLabel = data.categoryLabel || 'Exam';
+      const setLabel = data.setLabel || '';
+      document.getElementById('examTitle').textContent = `Exam: ${catLabel}${setLabel ? ' — '+setLabel : ''}`;
+
+      // Apply saved selections to the dropdowns (manifest-aware, with fallback)
+      applySelectionsToUI(data.categoryId, data.setId, data.categoryLabel, data.setLabel);
+      // If manifest isn't ready yet, remember to re-apply using real options later
+      if (!MANIFEST || !MANIFEST.categories) {
+        PENDING_UI = {categoryId: data.categoryId, setId: data.setId};
+      }
 
       reviewMode = false;
       submitBtn.disabled = false;
@@ -675,7 +734,7 @@ function loadProgressFromLocal(){
 
 loadBtn.addEventListener('click', loadProgressFromLocal);
 
-// Save on tab/window close/refresh to keep latest timer value
+// Save on tab/window close/refresh to keep latest timer & selection
 window.addEventListener('beforeunload', ()=>{
   saveProgressToLocal(false);
 });
@@ -690,11 +749,9 @@ timerInput.addEventListener('change', e=>{
   }
 });
 
-/* --- Time-up modal flow (blurred, no review mode until Okay) --- */
+/* --- Time-up modal flow --- */
 function openTimeUpModal(){
-  // If confirm modal is open, close it to avoid stacking modals
   if (activeModal === 'confirm') closeConfirmSubmitModal(false);
-
   timeUpModal.style.display = 'flex';
   setTimeout(()=> timeUpModal.classList.add('show'), 10);
   document.body.style.overflow = 'hidden';
@@ -725,7 +782,6 @@ function openConfirmSubmitModal(){
   isModalOpen = true;
   activeModal = 'confirm';
 
-  // Focus management
   setTimeout(()=> confirmSubmitNow.focus(), 20);
 }
 
@@ -762,7 +818,6 @@ document.addEventListener('keydown', (e)=>{
 /* --- Timer runner --- */
 function resetTimer(){
   if(TIMER) clearInterval(TIMER);
-  // If the restored/remaining time is already 0, show the time-up modal immediately.
   if (timerSeconds <= 0){
     timerEl.textContent = formatTime(0);
     openTimeUpModal();
@@ -773,7 +828,7 @@ function resetTimer(){
     timerSeconds--;
     timerEl.textContent = formatTime(timerSeconds);
 
-    // Throttled autosave every 3 seconds
+    // Throttled autosave every 3 seconds (persist timer & selections)
     const now = Date.now();
     if (now - lastTimerAutosave > 3000){
       saveProgressToLocal(false);
@@ -786,7 +841,6 @@ function resetTimer(){
     }
   },1000);
 }
-// Do not start timer on load until a set is loaded or progress is restored
 
 /* === Manifest-driven set loader === */
 let MANIFEST = null;
@@ -830,9 +884,11 @@ async function fetchAndLoadSet(setId){
     if(!res.ok) throw new Error('Failed to fetch questions.');
     const arr = await res.json();
     loadQuestionsFromArray(arr, /*shouldRandomize=*/true);
+
+    // Labels for title + persistence
     const catLabel = categorySelect.selectedOptions[0]?.textContent || 'Exam';
     const setLabel = setSelect.selectedOptions[0]?.textContent || '';
-    document.getElementById('examTitle').textContent = `Exam: ${catLabel} — ${setLabel}`;
+    document.getElementById('examTitle').textContent = `Exam: ${catLabel}${setLabel ? ' — '+setLabel : ''}`;
 
     // Start the timer ONLY after a set is loaded (supports decimal minutes)
     const mins = Math.max(0.01, Number(timerInput.value) || 60);
@@ -843,7 +899,7 @@ async function fetchAndLoadSet(setId){
     statusBadge.innerHTML = `Answered: <strong id="answeredCount">0</strong>/<strong id="totalQ">${TOTAL}</strong>`;
     setProgressBadge();
 
-    // Immediately save initial state (so timer persists even with no answers yet)
+    // Immediately save initial state, including selection ids/labels
     saveProgressToLocal(false);
 
   }catch(err){
@@ -883,6 +939,12 @@ closeResultBtn.addEventListener('click', ()=>{
   try{
     MANIFEST = await fetchManifest();
     populateCategorySelect();
+
+    // If we loaded progress before manifest arrived, reconcile selects now
+    if (PENDING_UI && PENDING_UI.categoryId){
+      applySelectionsToUI(PENDING_UI.categoryId, PENDING_UI.setId, '', '');
+      PENDING_UI = null;
+    }
   }catch(e){
     console.error(e);
     alert('Manifest not found. Make sure questions/index.json exists.');
