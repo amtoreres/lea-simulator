@@ -155,7 +155,7 @@
         <div class="progress"><i id="progressFill"></i></div>
       </div>
       <div class="tools">
-        <label class="small">Timer (mins): <input id="timerInput" type="number" value="60" min="1" style="width:70px;margin-left:6px"></label>
+        <label class="small">Timer (mins): <input id="timerInput" type="number" value="60" min="0.01" step="0.01" style="width:70px;margin-left:6px"></label>
       </div>
     </div>
 
@@ -397,14 +397,17 @@ function loadQuestionsFromArray(arr, shouldRandomize=false){
   nextBtn.disabled = false;
 }
 
-/* --- Submit exam --- */
-function submitExam(){
+/* --- Submit exam (supports forced submit without confirmations) --- */
+function submitExam(force = false){
   if(reviewMode) return;
-  const unanswered = USER.filter(x=>x===null).length;
-  if(unanswered>0){
-    if(!confirm(`You have ${unanswered} unanswered questions. Submit anyway?`)) return;
+
+  if(!force){
+    const unanswered = USER.filter(x=>x===null).length;
+    if(unanswered>0){
+      if(!confirm(`You have ${unanswered} unanswered questions. Submit anyway?`)) return;
+    }
+    if(!confirm('Submit exam? You will not be able to change your answers after submitting.')) return;
   }
-  if(!confirm('Submit exam? You will not be able to change your answers after submitting.')) return;
 
   reviewMode = true;
 
@@ -594,7 +597,7 @@ let timerSeconds = 3600; // default 1hr
 timerInput.addEventListener('change', e=>{
   const val = Number(e.target.value);
   if(val > 0){
-    timerSeconds = val * 60; // don't start yet
+    timerSeconds = Math.max(1, Math.round(val * 60)); // supports decimals (< 1 minute)
   }
 });
 function resetTimer(){
@@ -606,7 +609,7 @@ function resetTimer(){
     if(timerSeconds<=0){
       clearInterval(TIMER);
       alert('Time is up! Submitting exam automatically.');
-      submitExam();
+      submitExam(true); // auto-submit without confirmation prompts
     }
   },1000);
 }
@@ -658,8 +661,9 @@ async function fetchAndLoadSet(setId){
     const setLabel = setSelect.selectedOptions[0]?.textContent || '';
     document.getElementById('examTitle').textContent = `Exam: ${catLabel} — ${setLabel}`;
 
-    // Start the timer ONLY after a set is loaded
-    timerSeconds = Math.max(1, Number(timerInput.value) || 60) * 60;
+    // Start the timer ONLY after a set is loaded (supports decimal minutes)
+    const mins = Math.max(0.01, Number(timerInput.value) || 60);
+    timerSeconds = Math.max(1, Math.round(mins * 60));
     resetTimer();
 
     // Reset the badge to "Answered" for a new run
