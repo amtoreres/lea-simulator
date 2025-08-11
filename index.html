@@ -105,10 +105,34 @@
 
   .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   footer.small{font-size:13px;color:var(--muted);margin-top:10px}
-  /* result modal */
-  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,20,10,0.45);z-index:60}
-  .modal .box{background:white;padding:22px;border-radius:12px;min-width:320px;max-width:90%;text-align:center}
+
+  /* Modals (shared) */
+  .modal{
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(3,20,10,0.45);z-index:60;
+    opacity:0; pointer-events:none; transition:opacity .25s ease;
+  }
+  .modal.show{ opacity:1; pointer-events:auto; }
+  .modal .box{
+    background:white;padding:22px;border-radius:12px;min-width:320px;max-width:90%;text-align:center;
+    box-shadow:var(--shadow);
+    transform:translateY(8px) scale(.98); opacity:0; transition:transform .25s ease, opacity .25s ease;
+  }
+  .modal.show .box{ transform:translateY(0) scale(1); opacity:1; }
   .result-big{font-size:22px;font-weight:800;color:var(--primary);margin:8px 0}
+
+  /* Time-up modal extras */
+  #timeUpModal{ z-index:70; } /* above other modals */
+  .pulse{
+    width:72px;height:72px;border-radius:16px;margin:0 auto 10px auto;
+    background:conic-gradient(from 0deg, #66bb6a, var(--primary));
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:32px;font-weight:800;
+    position:relative; overflow:hidden;
+  }
+  .pulse::after{
+    content:''; position:absolute; inset:0; background:radial-gradient(closest-side, rgba(255,255,255,0.35), transparent 55%);
+  }
+
   /* responsive */
   @media(max-width:980px){
     .layout{grid-template-columns:1fr;gap:10px}
@@ -196,14 +220,26 @@
     </div>
   </div>
 
-  <!-- Modals -->
+  <!-- Result Modal -->
   <div id="resultModal" class="modal hidden" style="display:none">
-    <div class="box">
-      <h3>Exam Results</h3>
+    <div class="box" role="dialog" aria-labelledby="resultTitle" aria-modal="true">
+      <h3 id="resultTitle">Exam Results</h3>
       <div class="result-big" id="scoreText">0 / 0</div>
       <div class="small" id="percentText">0%</div>
       <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
         <button id="closeResult" class="ghost">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Time-Up Modal (custom instead of alert) -->
+  <div id="timeUpModal" class="modal hidden" style="display:none">
+    <div class="box" role="dialog" aria-labelledby="timeUpTitle" aria-describedby="timeUpDesc" aria-modal="true">
+      <div class="pulse" aria-hidden="true">⏰</div>
+      <h3 id="timeUpTitle" style="margin:6px 0 2px 0">Time is up!</h3>
+      <p id="timeUpDesc" class="small" style="margin:0 0 6px 0">Your exam is being submitted automatically.</p>
+      <div style="margin-top:10px;display:flex;gap:8px;justify-content:center">
+        <button id="timeUpOk" class="btn" autofocus>Okay</button>
       </div>
     </div>
   </div>
@@ -238,6 +274,10 @@ const clearAnswersBtn = document.getElementById('clearAnswers');
 const loadBtn = document.getElementById('loadBtn');
 const closeResultBtn = document.getElementById('closeResult');
 const timerInput = document.getElementById('timerInput');
+
+/* New: time-up modal refs */
+const timeUpModal = document.getElementById('timeUpModal');
+const timeUpOk = document.getElementById('timeUpOk');
 
 /* Picker refs */
 const categorySelect = document.getElementById('categorySelect');
@@ -397,8 +437,9 @@ function loadQuestionsFromArray(arr, shouldRandomize=false){
   nextBtn.disabled = false;
 }
 
-/* --- Submit exam (supports forced submit without confirmations) --- */
-function submitExam(force = false){
+/* --- Submit exam (supports forced submit without confirmations) ---
+   Added: showResult parameter (default true) so timeout can skip extra popups if needed */
+function submitExam(force = false, showResult = true){
   if(reviewMode) return;
 
   if(!force){
@@ -430,10 +471,14 @@ function submitExam(force = false){
   updateGridForReview();
   renderReviewQuestion(CURRENT);
 
-  // Show result modal
-  scoreText.textContent = `${correct} / ${TOTAL}`;
-  percentText.textContent = TOTAL ? ((correct/TOTAL)*100).toFixed(2) + '%' : '0%';
-  resultModal.style.display = 'flex';
+  // Show result modal (optional)
+  if (showResult){
+    scoreText.textContent = `${correct} / ${TOTAL}`;
+    percentText.textContent = TOTAL ? ((correct/TOTAL)*100).toFixed(2) + '%' : '0%';
+    resultModal.style.display = 'flex';
+    // small tick to allow display to attach before anim
+    setTimeout(()=> resultModal.classList.add('show'), 10);
+  }
 }
 
 /* --- Render question in review mode --- */
@@ -549,7 +594,8 @@ submitBtn.addEventListener('click', submitExam);
 
 /* --- Result modal --- */
 closeResultBtn.addEventListener('click', ()=>{
-  resultModal.style.display = 'none';
+  resultModal.classList.remove('show');
+  setTimeout(()=> resultModal.style.display = 'none', 250);
 });
 
 /* --- Save/Load progress from localStorage --- */
@@ -600,6 +646,18 @@ timerInput.addEventListener('change', e=>{
     timerSeconds = Math.max(1, Math.round(val * 60)); // supports decimals (< 1 minute)
   }
 });
+
+/* New: custom time-up modal logic */
+function openTimeUpModal(){
+  timeUpModal.style.display = 'flex';
+  setTimeout(()=> timeUpModal.classList.add('show'), 10);
+}
+function closeTimeUpModal(){
+  timeUpModal.classList.remove('show');
+  setTimeout(()=> timeUpModal.style.display = 'none', 250);
+}
+timeUpOk.addEventListener('click', closeTimeUpModal);
+
 function resetTimer(){
   if(TIMER) clearInterval(TIMER);
   timerEl.textContent = formatTime(timerSeconds);
@@ -608,8 +666,15 @@ function resetTimer(){
     timerEl.textContent = formatTime(timerSeconds);
     if(timerSeconds<=0){
       clearInterval(TIMER);
-      alert('Time is up! Submitting exam automatically.');
-      submitExam(true); // auto-submit without confirmation prompts
+
+      // 🔔 Show custom modal instead of alert, then auto-submit
+      openTimeUpModal();
+
+      // Give the modal a moment to animate in, then submit.
+      setTimeout(()=>{
+        // submit with force, but don't spawn result immediately under the time-up modal
+        submitExam(true, /*showResult=*/true);
+      }, 600);
     }
   },1000);
 }
